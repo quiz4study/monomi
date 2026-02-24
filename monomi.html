@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Interattivo: Monomi</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .option-card:hover:not(.disabled) { transform: translateY(-2px); }
+        .correct { border-color: #10b981 !important; background-color: #ecfdf5 !important; }
+        .incorrect { border-color: #ef4444 !important; background-color: #fef2f2 !important; }
+        .hint-container { transition: all 0.3s ease; }
+        .disabled { cursor: not-allowed; opacity: 0.7; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen py-10 px-4">
+
+    <div id="app" class="max-w-2xl mx-auto">
+        <!-- Schermata Iniziale -->
+        <div id="start-screen" class="bg-white rounded-2xl shadow-xl p-8 text-center">
+            <h1 class="text-3xl font-bold text-blue-800 mb-4">Quiz sui Monomi</h1>
+            <p class="text-gray-600 mb-8">Metti alla prova la tua preparazione! Hai 2 tentativi per ogni domanda. Se sbagli il primo, riceverai un suggerimento.</p>
+            <button onclick="startQuiz()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition-all text-lg shadow-lg">
+                Inizia il Quiz
+            </button>
+        </div>
+
+        <!-- Schermata Quiz -->
+        <div id="quiz-screen" class="hidden">
+            <div class="bg-white rounded-2xl shadow-xl p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <span id="progress-text" class="text-sm font-semibold text-blue-600 uppercase tracking-wider">Domanda 1 di 10</span>
+                    <div class="w-1/2 bg-gray-200 rounded-full h-2">
+                        <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all" style="width: 10%"></div>
+                    </div>
+                </div>
+
+                <div id="question-container" class="mb-8">
+                    <h2 id="question-text" class="text-xl font-semibold text-gray-800 mb-4"></h2>
+                    
+                    <!-- Pulsante Suggerimento (Manuale) -->
+                    <button id="hint-toggle-btn" onclick="toggleHint()" class="flex items-center text-amber-600 hover:text-amber-700 font-medium text-sm mb-6 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                        Hai bisogno di un suggerimento?
+                    </button>
+
+                    <div id="hint-box" class="hidden hint-container bg-amber-50 border border-amber-200 p-4 rounded-xl mb-6 text-amber-800 text-sm italic">
+                    </div>
+
+                    <div id="options-container" class="space-y-3">
+                        <!-- Le opzioni verranno inserite qui -->
+                    </div>
+                </div>
+
+                <div id="feedback-container" class="hidden p-4 rounded-lg mb-6 border-2">
+                    <p id="feedback-text" class="font-bold text-lg"></p>
+                    <p id="rationale-text" class="text-sm mt-2 opacity-90"></p>
+                </div>
+
+                <button id="next-btn" onclick="nextQuestion()" class="hidden w-full bg-gray-800 hover:bg-black text-white font-bold py-3 rounded-xl transition-all">
+                    Prossima Domanda
+                </button>
+            </div>
+        </div>
+
+        <!-- Schermata Finale -->
+        <div id="result-screen" class="hidden bg-white rounded-2xl shadow-xl p-8 text-center">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4">Quiz Completato!</h2>
+            <div class="text-5xl font-extrabold text-blue-600 mb-4" id="final-score">0/10</div>
+            <p id="result-message" class="text-gray-600 mb-8"></p>
+            <button onclick="location.reload()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition-all">
+                Riprova il Quiz
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const quizData = [
+            {
+                q: "Dato il monomio \\(-\\frac{3}{5}a^{2}b^{4}c\\), qual è il suo grado assoluto?",
+                options: [
+                    { text: "7", isCorrect: true },
+                    { text: "6", isCorrect: false },
+                    { text: "2", isCorrect: false },
+                    { text: "1", isCorrect: false }
+                ],
+                hint: "Ricorda che il grado assoluto è la somma degli esponenti. Se una lettera non ha esponente (come c), è sottinteso 1.",
+                rationale: "Si sommano gli esponenti: 2 (a) + 4 (b) + 1 (c) = 7."
+            },
+            {
+                q: "Qual è il coefficiente del monomio \\(-x^{2}y\\)?",
+                options: [
+                    { text: "-1", isCorrect: true },
+                    { text: "1", isCorrect: false },
+                    { text: "0", isCorrect: false },
+                    { text: "Non esiste", isCorrect: false }
+                ],
+                hint: "Il coefficiente è la parte numerica. Un segno meno isolato davanti alle lettere indica un valore specifico sottinteso.",
+                rationale: "Quando c'è solo il segno meno, il coefficiente numerico sottinteso è -1."
+            },
+            {
+                q: "Calcola il valore di \\(2a^{2} - 3b\\) se \\(a = -2\\) e \\(b = 3\\).",
+                options: [
+                    { text: "-1", isCorrect: true },
+                    { text: "17", isCorrect: false },
+                    { text: "1", isCorrect: false },
+                    { text: "-11", isCorrect: false }
+                ],
+                hint: "Eleva prima a quadrato (-2), poi moltiplica per 2. Infine sottrai il prodotto di 3 per 3.",
+                rationale: "\\(2(-2)^2 - 3(3) = 2(4) - 9 = 8 - 9 = -1\\)."
+            },
+            {
+                q: "Semplifica: \\(5xy - 2ab + 3xy + 5ab\\).",
+                options: [
+                    { text: "8xy + 3ab", isCorrect: true },
+                    { text: "11xyab", isCorrect: false },
+                    { text: "8xy - 7ab", isCorrect: false },
+                    { text: "2xy + 3ab", isCorrect: false }
+                ],
+                hint: "Puoi sommare solo i monomi simili, ovvero quelli che hanno la stessa identica parte letterale.",
+                rationale: "Sommiamo i termini simili: (5+3)xy = 8xy e (-2+5)ab = 3ab."
+            },
+            {
+                q: "Esegui il prodotto: \\((-3a^{2}b) \\cdot (+4ab^{3}c)\\).",
+                options: [
+                    { text: "-12a^{3}b^{4}c", isCorrect: true },
+                    { text: "12a^{2}b^{3}c", isCorrect: false },
+                    { text: "-7a^{3}b^{4}c", isCorrect: false },
+                    { text: "-12a^{2}b^{3}", isCorrect: false }
+                ],
+                hint: "Moltiplica i numeri e somma gli esponenti delle lettere uguali (proprietà delle potenze).",
+                rationale: "Coefficienti: -3*4=-12. Esponenti: 2+1=3 per 'a', 1+3=4 per 'b', 'c' rimane."
+            },
+            {
+                q: "Esegui la divisione: \\((-15x^{6}y^{4}) : (-3x^{2}y^{4})\\).",
+                options: [
+                    { text: "5x^{4}", isCorrect: true },
+                    { text: "5x^{3}", isCorrect: false },
+                    { text: "-5x^{4}", isCorrect: false },
+                    { text: "5x^{4}y", isCorrect: false }
+                ],
+                hint: "Dividi i coefficienti e sottrai gli esponenti delle lettere uguali. Se l'esponente è zero, la lettera scompare.",
+                rationale: "-15/(-3) = 5. Per le lettere: 6-2=4 per 'x', 4-4=0 per 'y'."
+            },
+            {
+                q: "Calcola la potenza: \\((-2a^{3}b^{2})^{3}\\).",
+                options: [
+                    { text: "-8a^{9}b^{6}", isCorrect: true },
+                    { text: "8a^{9}b^{6}", isCorrect: false },
+                    { text: "-6a^{6}b^{5}", isCorrect: false },
+                    { text: "-8a^{6}b^{5}", isCorrect: false }
+                ],
+                hint: "Eleva il numero alla terza (occhio al segno!) e moltiplica ogni esponente interno per 3.",
+                rationale: "(-2)^3 = -8. Esponenti: 3*3=9 e 2*3=6."
+            },
+            {
+                q: "Somma: \\(-\\frac{1}{2}a^{2} + \\frac{2}{3}a^{2}\\).",
+                options: [
+                    { text: "\\frac{1}{6}a^{2}", isCorrect: true },
+                    { text: "\\frac{1}{5}a^{2}", isCorrect: false },
+                    { text: "-\\frac{1}{6}a^{2}", isCorrect: false },
+                    { text: "\\frac{3}{5}a^{2}", isCorrect: false }
+                ],
+                hint: "Trova il minimo comune multiplo tra 2 e 3 (che è 6) per sommare i coefficienti.",
+                rationale: "m.c.m = 6. Numeratore: (-3 + 4)/6 = 1/6."
+            },
+            {
+                q: "Semplifica: \\((3x^{2}y)^{2} - 10x^{4}y^{2}\\).",
+                options: [
+                    { text: "-x^{4}y^{2}", isCorrect: true },
+                    { text: "x^{4}y^{2}", isCorrect: false },
+                    { text: "-x^{2}y", isCorrect: false },
+                    { text: "-7x^{4}y^{2}", isCorrect: false }
+                ],
+                hint: "Risolvi prima la potenza. Se il risultato è simile al secondo termine, procedi con la sottrazione.",
+                rationale: "9x^4y^2 - 10x^4y^2 = -1x^4y^2."
+            },
+            {
+                q: "Dati \\(a = -1, b = 2\\), calcola \\((a+b)^{2}\\).",
+                options: [
+                    { text: "1", isCorrect: true },
+                    { text: "9", isCorrect: false },
+                    { text: "-1", isCorrect: false },
+                    { text: "5", isCorrect: false }
+                ],
+                hint: "Risolvi l'operazione dentro la parentesi tonda prima di elevare al quadrato.",
+                rationale: "(-1 + 2)^2 = (1)^2 = 1."
+            }
+        ];
+
+        let currentQuestion = 0;
+        let score = 0;
+        let attempts = 0;
+        let answered = false;
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function startQuiz() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            showQuestion();
+        }
+
+        function toggleHint() {
+            const hintBox = document.getElementById('hint-box');
+            hintBox.classList.toggle('hidden');
+        }
+
+        function showQuestion() {
+            answered = false;
+            attempts = 0;
+            const qData = quizData[currentQuestion];
+            const shuffledOptions = shuffle([...qData.options]);
+            
+            document.getElementById('progress-text').innerText = `Domanda ${currentQuestion + 1} di ${quizData.length}`;
+            document.getElementById('progress-bar').style.width = `${((currentQuestion + 1) / quizData.length) * 100}%`;
+            
+            document.getElementById('question-text').innerHTML = qData.q;
+            document.getElementById('hint-box').innerText = qData.hint;
+            document.getElementById('hint-box').classList.add('hidden');
+            document.getElementById('hint-toggle-btn').classList.remove('hidden');
+
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+            
+            shuffledOptions.forEach((opt) => {
+                const btn = document.createElement('button');
+                btn.className = "option-card w-full text-left p-4 border-2 border-gray-200 rounded-xl transition-all focus:outline-none bg-white";
+                btn.innerHTML = `\\(${opt.text}\\)`;
+                btn.onclick = () => checkAnswer(opt.isCorrect, btn);
+                optionsContainer.appendChild(btn);
+            });
+
+            document.getElementById('feedback-container').classList.add('hidden');
+            document.getElementById('next-btn').classList.add('hidden');
+            
+            MathJax.typesetPromise();
+        }
+
+        function checkAnswer(isCorrect, btn) {
+            if (answered || btn.classList.contains('disabled')) return;
+            
+            attempts++;
+            const qData = quizData[currentQuestion];
+            const feedback = document.getElementById('feedback-container');
+            const feedbackText = document.getElementById('feedback-text');
+            const rationale = document.getElementById('rationale-text');
+            const buttons = document.getElementById('options-container').querySelectorAll('button');
+
+            if (isCorrect) {
+                answered = true;
+                score++;
+                btn.classList.add('correct');
+                feedback.className = "p-4 rounded-lg mb-6 border-green-500 bg-green-50 text-green-800";
+                feedbackText.innerText = attempts === 1 ? "Eccellente! Al primo colpo! ✨" : "Ottimo! Hai indovinato al secondo tentativo! 👍";
+                
+                // Disabilita altri pulsanti
+                buttons.forEach(b => b.classList.add('disabled'));
+                
+                document.getElementById('hint-box').classList.add('hidden');
+                document.getElementById('hint-toggle-btn').classList.add('hidden');
+                
+                rationale.innerHTML = "<b>Spiegazione:</b> " + qData.rationale;
+                document.getElementById('next-btn').classList.remove('hidden');
+                feedback.classList.remove('hidden');
+            } else {
+                if (attempts === 1) {
+                    // Primo errore
+                    btn.classList.add('incorrect', 'disabled');
+                    feedback.className = "p-4 rounded-lg mb-6 border-amber-500 bg-amber-50 text-amber-800";
+                    feedbackText.innerText = "Quasi! Leggi il suggerimento qui sotto e riprova... 💡";
+                    feedback.classList.remove('hidden');
+                    
+                    // Mostra suggerimento automaticamente
+                    document.getElementById('hint-box').classList.remove('hidden');
+                    document.getElementById('hint-toggle-btn').classList.add('hidden');
+                } else {
+                    // Secondo errore (definitivo)
+                    answered = true;
+                    btn.classList.add('incorrect');
+                    feedback.className = "p-4 rounded-lg mb-6 border-red-500 bg-red-50 text-red-800";
+                    feedbackText.innerText = "Ops! Anche questo tentativo è errato. Ecco la soluzione corretta:";
+                    
+                    buttons.forEach(b => {
+                        b.classList.add('disabled');
+                        const correctText = qData.options.find(o => o.isCorrect).text;
+                        if (b.innerHTML.includes(correctText)) {
+                            b.classList.add('correct');
+                        }
+                    });
+
+                    document.getElementById('hint-box').classList.add('hidden');
+                    rationale.innerHTML = "<b>Spiegazione:</b> " + qData.rationale;
+                    document.getElementById('next-btn').classList.remove('hidden');
+                    feedback.classList.remove('hidden');
+                }
+            }
+            MathJax.typesetPromise();
+        }
+
+        function nextQuestion() {
+            currentQuestion++;
+            if (currentQuestion < quizData.length) {
+                showQuestion();
+            } else {
+                showResults();
+            }
+        }
+
+        function showResults() {
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            document.getElementById('final-score').innerText = `${score} / ${quizData.length}`;
+            
+            let msg = "";
+            if (score === 10) msg = "Fenomenale! Hai dominato il mondo dei monomi!";
+            else if (score >= 8) msg = "Bravo! Hai un'ottima base, continua così.";
+            else if (score >= 6) msg = "Sufficiente, ma alcuni concetti sono ancora incerti. Riprova per migliorare!";
+            else msg = "C'è ancora da lavorare. Non mollare, ripassa le regole e riprova il quiz!";
+            
+            document.getElementById('result-message').innerText = msg;
+        }
+    </script>
+</body>
+</html>
